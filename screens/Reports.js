@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  FlatList,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -216,20 +215,18 @@ export default function Reports() {
           </View>
 
           <Text style={styles.sectionTitle}>Driver-wise breakdown</Text>
-          <FlatList
-            data={summary.by_driver}
-            keyExtractor={(item, idx) => `${item.driver_name}-${idx}`}
-            scrollEnabled={false}
-            ListEmptyComponent={<Text style={styles.empty}>No trips in this period.</Text>}
-            renderItem={({ item }) => (
-              <View style={styles.driverRow}>
+          {summary.by_driver.length === 0 ? (
+            <Text style={styles.empty}>No trips in this period.</Text>
+          ) : (
+            summary.by_driver.map((item, idx) => (
+              <View key={`${item.driver_name}-${idx}`} style={styles.driverRow}>
                 <Text style={styles.driverName}>{item.driver_name}</Text>
                 <Text style={styles.driverMeta}>
                   {item.trips} trips · ₹ {Number(item.revenue).toFixed(2)}
                 </Text>
               </View>
-            )}
-          />
+            ))
+          )}
 
           <Pressable
             style={[styles.pdfBtn, pdfLoading && styles.disabled]}

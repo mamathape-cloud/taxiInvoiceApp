@@ -8,7 +8,6 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
-  FlatList,
   Platform,
   Alert,
 } from 'react-native';
@@ -146,13 +145,14 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
       />
       {dropdownOpen && customers.length > 0 ? (
         <View style={styles.dropdown}>
-          <FlatList
-            data={customers}
-            keyExtractor={(item) => String(item.id)}
+          <ScrollView
             keyboardShouldPersistTaps="handled"
             style={{ maxHeight: 200 }}
-            renderItem={({ item }) => (
+            nestedScrollEnabled
+          >
+            {customers.map((item) => (
               <Pressable
+                key={String(item.id)}
                 style={styles.ddRow}
                 onPress={() => {
                   setSelected(item);
@@ -165,8 +165,8 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
                   <Text style={styles.ddSub}>{item.phone}</Text>
                 ) : null}
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       ) : null}
       {dropdownOpen && customerQuery.trim() && customers.length === 0 ? (
