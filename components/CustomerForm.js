@@ -31,11 +31,7 @@ export default function CustomerForm({
   }, [initialValues]);
 
   const handleSave = () => {
-    if (showEmail) {
-      onSubmit({ name, address, phone, email });
-    } else {
-      onSubmit({ name, address, phone });
-    }
+    onSubmit({ name, address, phone });
   };
 
   return (
