@@ -8,12 +8,22 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
+  FlatList,
   Platform,
   Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import CustomerForm from './CustomerForm';
-import { getCustomers, insertCustomer, insertInvoice } from '../database/db';
+import {
+  getCustomersLimited,
+  insertCustomer,
+  insertInvoice,
+  getDistinctDriverNames,
+} from '../database/db';
+
+const CUSTOMER_MIN_CHARS = 1;
+const CUSTOMER_LIMIT = 25;
+const DRIVER_SUGGEST_LIMIT = 12;
 
 function padDate(d) {
   const y = d.getFullYear();
@@ -22,61 +32,113 @@ function padDate(d) {
   return `${y}-${m}-${day}`;
 }
 
+const initialErrors = () => ({
+  customer: '',
+  driver: '',
+  amount: '',
+  received: '',
+  description: '',
+});
+
 export default function InvoiceForm({ onSaved, loadingExternal }) {
   const [customerQuery, setCustomerQuery] = useState('');
   const [customers, setCustomers] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [customerListOpen, setCustomerListOpen] = useState(false);
   const [addModal, setAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addCustomerLoading, setAddCustomerLoading] = useState(false);
 
   const [driverName, setDriverName] = useState('');
+  const [driverSuggest, setDriverSuggest] = useState([]);
+  const [driverListOpen, setDriverListOpen] = useState(false);
+
   const [invoiceDate, setInvoiceDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [received, setReceived] = useState('');
 
+  const [errors, setErrors] = useState(initialErrors);
+  const [touched, setTouched] = useState({});
+
   const loadCustomers = useCallback(async (q) => {
-    const list = await getCustomers(q);
+    const trimmed = q.trim();
+    if (trimmed.length < CUSTOMER_MIN_CHARS) {
+      setCustomers([]);
+      return;
+    }
+    const list = await getCustomersLimited(trimmed, CUSTOMER_LIMIT);
     setCustomers(list);
   }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {
       loadCustomers(customerQuery);
-    }, 200);
+    }, 220);
     return () => clearTimeout(t);
   }, [customerQuery, loadCustomers]);
+
+  const loadDrivers = useCallback(async (prefix) => {
+    const rows = await getDistinctDriverNames(prefix, DRIVER_SUGGEST_LIMIT);
+    setDriverSuggest(rows.map((r) => r.name).filter(Boolean));
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      loadDrivers(driverName.trim());
+    }, 200);
+    return () => clearTimeout(t);
+  }, [driverName, loadDrivers]);
 
   const amtNum = parseFloat(amount) || 0;
   const recNum = parseFloat(received) || 0;
   const balance = Math.max(0, amtNum - recNum);
   const status = recNum < amtNum && amtNum > 0 ? 'PARTIAL' : amtNum > 0 ? 'FULL' : '—';
 
-  const validate = () => {
+  const setFieldError = (key, msg) => {
+    setErrors((e) => ({ ...e, [key]: msg }));
+  };
+
+  const validateAll = () => {
+    const next = initialErrors();
+    let ok = true;
     if (!selected) {
-      Alert.alert('Validation', 'Please select a customer.');
-      return false;
+      next.customer = 'Select a customer from the search results, or add a new one.';
+      ok = false;
     }
     if (!driverName.trim()) {
-      Alert.alert('Validation', 'Please enter driver name.');
-      return false;
+      next.driver = 'Driver name is required.';
+      ok = false;
     }
     if (amtNum <= 0) {
-      Alert.alert('Validation', 'Total amount must be greater than zero.');
-      return false;
+      next.amount = 'Enter a total amount greater than zero.';
+      ok = false;
     }
-    if (recNum < 0 || recNum > amtNum) {
-      Alert.alert('Validation', 'Received amount must be between 0 and total amount.');
-      return false;
+    if (received.trim() === '' || Number.isNaN(parseFloat(received))) {
+      next.received = 'Enter the received amount.';
+      ok = false;
+    } else if (recNum < 0 || recNum > amtNum) {
+      next.received = 'Received must be between 0 and the total amount.';
+      ok = false;
     }
-    return true;
+    if (!description.trim()) {
+      next.description = 'Add at least one line in the description (e.g. trip, toll).';
+      ok = false;
+    }
+    setErrors(next);
+    setTouched({
+      customer: true,
+      driver: true,
+      amount: true,
+      received: true,
+      description: true,
+    });
+    return ok;
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validateAll()) return;
     setSaving(true);
     try {
       const dateStr = padDate(invoiceDate);
@@ -106,8 +168,7 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
     setAddCustomerLoading(true);
     try {
       const newId = await insertCustomer({ name, address, phone });
-      await loadCustomers('');
-      const list = await getCustomers('');
+      const list = await getCustomersLimited(name.trim(), CUSTOMER_LIMIT);
       const row = list.find((c) => c.id === newId) || {
         id: newId,
         name: name.trim(),
@@ -116,7 +177,9 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
       };
       setSelected(row);
       setCustomerQuery(row.name);
+      setCustomerListOpen(false);
       setAddModal(false);
+      setFieldError('customer', '');
       Alert.alert('Success', 'Customer added.');
     } catch (e) {
       console.error(e);
@@ -126,70 +189,125 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
     }
   };
 
+  const inputStyle = (key, base = styles.input) => [
+    base,
+    (touched[key] || errors[key]) && errors[key] ? styles.inputError : null,
+  ];
+
   const busy = saving || loadingExternal;
+  const showCustomerResults =
+    customerListOpen && customerQuery.trim().length >= CUSTOMER_MIN_CHARS;
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <Text style={styles.label}>Customer *</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle('customer')}
         value={customerQuery}
         onChangeText={(t) => {
           setCustomerQuery(t);
-          setDropdownOpen(true);
+          setCustomerListOpen(true);
           if (selected && t !== selected.name) setSelected(null);
+          if (errors.customer) setFieldError('customer', '');
         }}
-        onFocus={() => setDropdownOpen(true)}
-        placeholder="Search customer by name, phone..."
+        onBlur={() => {
+          setTouched((x) => ({ ...x, customer: true }));
+          setTimeout(() => setCustomerListOpen(false), 200);
+        }}
+        onFocus={() => setCustomerListOpen(true)}
+        placeholder="Type name, phone, or address (min. 1 character)…"
         placeholderTextColor="#999"
       />
-      {dropdownOpen && customers.length > 0 ? (
+      {touched.customer && errors.customer ? (
+        <Text style={styles.errText}>{errors.customer}</Text>
+      ) : null}
+      {customerQuery.trim().length < CUSTOMER_MIN_CHARS ? (
+        <Text style={styles.helper}>
+          Start typing to search customers. Results are limited to {CUSTOMER_LIMIT} matches — refine
+          your search if needed.
+        </Text>
+      ) : null}
+      {showCustomerResults && customers.length > 0 ? (
         <View style={styles.dropdown}>
-          <ScrollView
+          <FlatList
+            data={customers}
+            keyExtractor={(item) => String(item.id)}
             keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: 200 }}
+            style={{ maxHeight: 220 }}
             nestedScrollEnabled
-          >
-            {customers.map((item) => (
+            renderItem={({ item }) => (
               <Pressable
-                key={String(item.id)}
                 style={styles.ddRow}
                 onPress={() => {
                   setSelected(item);
                   setCustomerQuery(item.name);
-                  setDropdownOpen(false);
+                  setCustomerListOpen(false);
+                  setFieldError('customer', '');
                 }}
               >
                 <Text style={styles.ddName}>{item.name}</Text>
-                {item.phone ? (
-                  <Text style={styles.ddSub}>{item.phone}</Text>
-                ) : null}
+                {item.phone ? <Text style={styles.ddSub}>{item.phone}</Text> : null}
               </Pressable>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
       ) : null}
-      {dropdownOpen && customerQuery.trim() && customers.length === 0 ? (
+      {showCustomerResults && customers.length === 0 ? (
         <View style={styles.inlineAdd}>
-          <Text style={styles.hint}>No customer found.</Text>
+          <Text style={styles.hint}>No match for this search.</Text>
           <Pressable style={styles.linkBtn} onPress={() => setAddModal(true)}>
             <Text style={styles.linkBtnText}>Add New Customer</Text>
           </Pressable>
         </View>
-      ) : (
-        <Pressable style={styles.linkBtnMargin} onPress={() => setAddModal(true)}>
-          <Text style={styles.linkBtnText}>+ Add New Customer</Text>
-        </Pressable>
-      )}
+      ) : null}
+      <Pressable style={styles.linkBtnMargin} onPress={() => setAddModal(true)}>
+        <Text style={styles.linkBtnText}>+ Add New Customer</Text>
+      </Pressable>
 
       <Text style={styles.label}>Driver Name *</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle('driver')}
         value={driverName}
-        onChangeText={setDriverName}
-        placeholder="Driver name"
+        onChangeText={(t) => {
+          setDriverName(t);
+          setDriverListOpen(true);
+          if (errors.driver) setFieldError('driver', '');
+        }}
+        onBlur={() => {
+          setTouched((x) => ({ ...x, driver: true }));
+          setTimeout(() => setDriverListOpen(false), 200);
+        }}
+        onFocus={() => setDriverListOpen(true)}
+        placeholder="Driver name (suggestions from past invoices)"
         placeholderTextColor="#999"
       />
+      {touched.driver && errors.driver ? (
+        <Text style={styles.errText}>{errors.driver}</Text>
+      ) : null}
+      {driverListOpen && driverSuggest.length > 0 ? (
+        <View style={styles.dropdown}>
+          <FlatList
+            data={driverSuggest.filter((n) => n.toLowerCase() !== driverName.trim().toLowerCase())}
+            keyExtractor={(item) => item}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: 140 }}
+            nestedScrollEnabled
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.ddRow}
+                onPress={() => {
+                  setDriverName(item);
+                  setDriverListOpen(false);
+                  setFieldError('driver', '');
+                }}
+              >
+                <Text style={styles.ddName}>{item}</Text>
+              </Pressable>
+            )}
+          />
+        </View>
+      ) : null}
+      <Text style={styles.helperSmall}>Names are loaded from existing invoices (no extra table).</Text>
 
       <Text style={styles.label}>Date</Text>
       <Pressable style={styles.dateBtn} onPress={() => setShowPicker(true)}>
@@ -207,35 +325,58 @@ export default function InvoiceForm({ onSaved, loadingExternal }) {
         />
       )}
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>Description *</Text>
       <TextInput
-        style={[styles.input, styles.multiline]}
+        style={[
+          styles.input,
+          styles.multiline,
+          (touched.description || errors.description) && errors.description ? styles.inputError : null,
+        ]}
         value={description}
-        onChangeText={setDescription}
+        onChangeText={(t) => {
+          setDescription(t);
+          if (errors.description) setFieldError('description', '');
+        }}
+        onBlur={() => setTouched((x) => ({ ...x, description: true }))}
         placeholder={'e.g. Trip\nParking\nToll'}
         placeholderTextColor="#999"
         multiline
       />
+      {touched.description && errors.description ? (
+        <Text style={styles.errText}>{errors.description}</Text>
+      ) : null}
 
       <Text style={styles.label}>Total Amount *</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle('amount')}
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={(t) => {
+          setAmount(t);
+          if (errors.amount) setFieldError('amount', '');
+        }}
+        onBlur={() => setTouched((x) => ({ ...x, amount: true }))}
         placeholder="0.00"
         placeholderTextColor="#999"
         keyboardType="decimal-pad"
       />
+      {touched.amount && errors.amount ? <Text style={styles.errText}>{errors.amount}</Text> : null}
 
       <Text style={styles.label}>Received Amount *</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle('received')}
         value={received}
-        onChangeText={setReceived}
+        onChangeText={(t) => {
+          setReceived(t);
+          if (errors.received) setFieldError('received', '');
+        }}
+        onBlur={() => setTouched((x) => ({ ...x, received: true }))}
         placeholder="0.00"
         placeholderTextColor="#999"
         keyboardType="decimal-pad"
       />
+      {touched.received && errors.received ? (
+        <Text style={styles.errText}>{errors.received}</Text>
+      ) : null}
 
       <View style={styles.summaryBox}>
         <Text style={styles.summaryLine}>
@@ -288,6 +429,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  inputError: {
+    borderColor: '#c62828',
+    backgroundColor: '#fff8f8',
+  },
+  errText: { color: '#c62828', fontSize: 13, marginTop: 4, marginBottom: 2 },
+  helper: { color: '#666', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  helperSmall: { color: '#888', fontSize: 12, marginTop: 4 },
   multiline: { minHeight: 120, textAlignVertical: 'top' },
   dropdown: {
     borderWidth: 1,

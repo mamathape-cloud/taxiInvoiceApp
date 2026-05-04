@@ -123,33 +123,50 @@ export default function InvoicePreview({ company, invoice }) {
               <Text style={styles.metaLabel}>Total Amount</Text>
               <Text style={styles.metaValBold}>₹ {formatMoney(invoice?.amount)}</Text>
             </View>
+            {invoice?.driver_name && String(invoice.driver_name).trim() ? (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Driver</Text>
+                <Text style={styles.metaVal}>{invoice.driver_name}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.amountBox}>
-          <Text style={styles.boxLabel}>Invoice Amount in Words</Text>
-          <Text style={styles.words}>{words}</Text>
-          <View style={styles.amountRow}>
-            <Text>Received Amount</Text>
-            <Text style={styles.amt}>₹ {formatMoney(invoice?.received_amount)}</Text>
+        <View style={styles.splitRow}>
+          <View style={styles.leftPane}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <View style={styles.descBox}>
+              {descriptionLines.length === 0 ||
+              (descriptionLines.length === 1 && !descriptionLines[0]) ? (
+                <Text style={styles.muted}>—</Text>
+              ) : (
+                descriptionLines.map((line, i) => (
+                  <Text key={i} style={styles.descLine}>
+                    {line}
+                  </Text>
+                ))
+              )}
+            </View>
           </View>
-          <View style={styles.amountRow}>
-            <Text>Balance Amount</Text>
-            <Text style={styles.amt}>₹ {formatMoney(invoice?.balance_amount)}</Text>
+          <View style={styles.rightPane}>
+            <Text style={styles.sectionTitle}>Amounts</Text>
+            <View style={styles.amountBox}>
+              <Text style={styles.boxLabel}>Invoice Amount in Words</Text>
+              <Text style={styles.words}>{words}</Text>
+              <View style={styles.amountRow}>
+                <Text>Received Amount</Text>
+                <Text style={styles.amt}>₹ {formatMoney(invoice?.received_amount)}</Text>
+              </View>
+              <View style={styles.amountRow}>
+                <Text>Balance (Pending)</Text>
+                <Text style={styles.amt}>₹ {formatMoney(invoice?.balance_amount)}</Text>
+              </View>
+              <View style={styles.amountRow}>
+                <Text>Payment status</Text>
+                <Text style={styles.amt}>{invoice?.payment_status}</Text>
+              </View>
+            </View>
           </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>Description</Text>
-        <View style={styles.descBox}>
-          {descriptionLines.length === 0 || (descriptionLines.length === 1 && !descriptionLines[0]) ? (
-            <Text style={styles.muted}>—</Text>
-          ) : (
-            descriptionLines.map((line, i) => (
-              <Text key={i} style={styles.descLine}>
-                {line}
-              </Text>
-            ))
-          )}
         </View>
 
         <View style={styles.terms}>
@@ -211,6 +228,15 @@ const styles = StyleSheet.create({
   muted: { color: '#555', fontSize: 13, marginTop: 2, lineHeight: 18 },
   twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   col: { flex: 1, minWidth: 140 },
+  splitRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 8,
+    alignItems: 'stretch',
+  },
+  leftPane: { flex: 1, minWidth: 160 },
+  rightPane: { flex: 1, minWidth: 160 },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
@@ -228,13 +254,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f7ff',
     borderRadius: 10,
     padding: 14,
-    marginVertical: 16,
     borderWidth: 1,
     borderColor: '#e0e4ff',
+    flex: 1,
+    minHeight: 140,
   },
   boxLabel: { fontWeight: '600', marginBottom: 6 },
-  words: { fontStyle: 'italic', color: '#333', marginBottom: 12, lineHeight: 20 },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  words: { fontStyle: 'italic', color: '#333', marginBottom: 12, lineHeight: 20, fontSize: 13 },
+  amountRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, gap: 8 },
   amt: { fontWeight: '700' },
   descBox: {
     borderWidth: 1,
@@ -242,7 +269,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     backgroundColor: '#fafafa',
-    minHeight: 72,
+    minHeight: 140,
+    flex: 1,
   },
   descLine: { fontSize: 14, marginVertical: 2, lineHeight: 20 },
   terms: { marginTop: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#eee' },

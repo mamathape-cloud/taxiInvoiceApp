@@ -52,11 +52,14 @@ export function buildInvoiceHtml(company, invoice) {
     table.meta { width: 100%; border-collapse: collapse; }
     table.meta td { padding: 6px 0; vertical-align: top; }
     table.meta td.label { color: #666; width: 42%; }
-    .amount-block { background: #f5f7ff; border: 1px solid #e0e4ff; border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
-    .amount-row { display: flex; justify-content: space-between; padding: 4px 0; }
-    .words { font-style: italic; color: #333; margin: 12px 0; line-height: 1.5; }
-    .desc-box { border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; min-height: 80px; background: #fafafa; }
+    .split-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch; margin: 20px 0; }
+    .col-desc { flex: 1.1; min-width: 220px; }
+    .col-amt { flex: 1; min-width: 220px; }
+    .desc-box { border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; min-height: 160px; background: #fafafa; }
     .desc-line { white-space: pre-wrap; margin: 2px 0; }
+    .amount-block { background: #f5f7ff; border: 1px solid #e0e4ff; border-radius: 8px; padding: 14px 16px; height: 100%; min-height: 160px; }
+    .amount-row { display: flex; justify-content: space-between; padding: 6px 0; gap: 12px; }
+    .words { font-style: italic; color: #333; margin: 10px 0 14px 0; line-height: 1.5; font-size: 13px; }
     .terms { margin-top: 28px; padding-top: 16px; border-top: 1px solid #eee; color: #555; font-size: 13px; line-height: 1.5; }
     .footer-sign { margin-top: 32px; display: flex; justify-content: flex-end; }
     .sign-inner { text-align: center; }
@@ -88,20 +91,26 @@ export function buildInvoiceHtml(company, invoice) {
         <tr><td class="label">Invoice Number</td><td><strong>${escapeHtml(invoice?.invoice_number || '')}</strong></td></tr>
         <tr><td class="label">Date</td><td>${escapeHtml(formatDisplayDate(invoice?.date))}</td></tr>
         <tr><td class="label">Total Amount</td><td><strong>₹ ${formatMoney(invoice?.amount)}</strong></td></tr>
+        ${invoice?.driver_name && String(invoice.driver_name).trim() ? `<tr><td class="label">Driver</td><td>${escapeHtml(invoice.driver_name)}</td></tr>` : ''}
       </table>
     </div>
   </div>
 
-  <div class="amount-block">
-    <div class="amount-row"><span>Invoice Amount in Words</span></div>
-    <div class="words">${escapeHtml(amountToWords(invoice?.amount))}</div>
-    <div class="amount-row"><span>Received Amount</span><span>₹ ${formatMoney(invoice?.received_amount)}</span></div>
-    <div class="amount-row"><span>Balance Amount</span><span>₹ ${formatMoney(invoice?.balance_amount)}</span></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Description</div>
-    <div class="desc-box">${descriptionToHtml(invoice?.description)}</div>
+  <div class="split-row">
+    <div class="col-desc">
+      <div class="section-title">Description</div>
+      <div class="desc-box">${descriptionToHtml(invoice?.description)}</div>
+    </div>
+    <div class="col-amt">
+      <div class="section-title">Amounts</div>
+      <div class="amount-block">
+        <div class="amount-row"><span>Invoice Amount in Words</span></div>
+        <div class="words">${escapeHtml(amountToWords(invoice?.amount))}</div>
+        <div class="amount-row"><span>Received Amount</span><span>₹ ${formatMoney(invoice?.received_amount)}</span></div>
+        <div class="amount-row"><span>Balance (Pending)</span><span>₹ ${formatMoney(invoice?.balance_amount)}</span></div>
+        <div class="amount-row"><span>Payment Status</span><span><strong>${escapeHtml(invoice?.payment_status || '')}</strong></span></div>
+      </div>
+    </div>
   </div>
 
   <div class="terms">

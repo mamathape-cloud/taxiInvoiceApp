@@ -14,16 +14,19 @@ export default function CustomerForm({
   onSubmit,
   submitLabel = 'Save',
   loading,
+  showEmail,
 }) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     if (initialValues) {
       setName(initialValues.name || '');
       setAddress(initialValues.address || '');
       setPhone(initialValues.phone || '');
+      setEmail(initialValues.email || '');
     }
   }, [initialValues]);
 
@@ -59,6 +62,20 @@ export default function CustomerForm({
         placeholderTextColor="#999"
         keyboardType="phone-pad"
       />
+      {showEmail ? (
+        <>
+          <Text style={styles.label}>Email (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="company@example.com"
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </>
+      ) : null}
       <Pressable
         style={[styles.btn, loading && styles.btnDisabled]}
         onPress={handleSave}

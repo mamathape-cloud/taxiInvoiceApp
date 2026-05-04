@@ -67,7 +67,7 @@ export default function SetupScreen({ navigation }) {
       });
       await refreshCompany();
       Alert.alert('Success', 'Company profile saved.');
-      navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (e) {
       console.error(e);
       Alert.alert('Error', 'Could not save company details.');
