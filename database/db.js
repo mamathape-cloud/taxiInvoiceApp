@@ -129,6 +129,53 @@ export async function getCustomers(search = '') {
   );
 }
 
+/** Search customers with a cap — use for invoice picker (no full list on empty query). */
+export async function getCustomersLimited(search = '', limit = 25) {
+  const db = await getDb();
+  const raw = (search || '').trim();
+  if (!raw) {
+    return [];
+  }
+  const q = `%${raw}%`;
+  return await db.getAllAsync(
+    `SELECT * FROM customers
+     WHERE name LIKE ? OR phone LIKE ? OR address LIKE ?
+     ORDER BY name COLLATE NOCASE ASC
+     LIMIT ?`,
+    q,
+    q,
+    q,
+    limit
+  );
+}
+
+/** Distinct driver_name values from invoices (no new table). Optional prefix filter. */
+export async function getDistinctDriverNames(prefix = '', limit = 20) {
+  const db = await getDb();
+  const p = (prefix || '').trim();
+  if (!p) {
+    return await db.getAllAsync(
+      `SELECT TRIM(driver_name) AS name FROM invoices
+       WHERE driver_name IS NOT NULL AND TRIM(driver_name) != ''
+       GROUP BY TRIM(driver_name)
+       ORDER BY MAX(created_at) DESC
+       LIMIT ?`,
+      limit
+    );
+  }
+  const like = `${p}%`;
+  return await db.getAllAsync(
+    `SELECT TRIM(driver_name) AS name FROM invoices
+       WHERE driver_name IS NOT NULL AND TRIM(driver_name) != ''
+         AND driver_name LIKE ?
+       GROUP BY TRIM(driver_name)
+       ORDER BY driver_name COLLATE NOCASE ASC
+       LIMIT ?`,
+    like,
+    limit
+  );
+}
+
 export async function getCustomerById(id) {
   const db = await getDb();
   return await db.getFirstAsync('SELECT * FROM customers WHERE id = ?', id);
@@ -310,4 +357,14 @@ export async function updateInvoice(id, fields) {
 export async function deleteInvoice(id) {
   const db = await getDb();
   await db.runAsync('DELETE FROM invoices WHERE id = ?', id);
+}
+
+/** Clear local data (logout). Resets company row and removes customers & invoices. */
+export async function clearAllAppData() {
+  const db = await getDb();
+  await db.execAsync(`
+    DELETE FROM invoices;
+    DELETE FROM customers;
+    DELETE FROM company;
+  `);
 }

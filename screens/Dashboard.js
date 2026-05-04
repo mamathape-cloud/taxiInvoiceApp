@@ -125,29 +125,9 @@ export default function Dashboard({ navigation }) {
         <Text style={styles.primaryBtnText}>Generate Invoice</Text>
       </Pressable>
 
-      <View style={styles.navGrid}>
-        <Pressable
-          style={styles.navCard}
-          onPress={() => navigation.navigate('Customers')}
-        >
-          <Text style={styles.navCardTitle}>Customers</Text>
-          <Text style={styles.navCardSub}>Manage customer list</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navCard}
-          onPress={() => navigation.navigate('Invoices')}
-        >
-          <Text style={styles.navCardTitle}>Invoices</Text>
-          <Text style={styles.navCardSub}>View all invoices</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.navCard, styles.navCardWide]}
-          onPress={() => navigation.navigate('Reports')}
-        >
-          <Text style={styles.navCardTitle}>Reports</Text>
-          <Text style={styles.navCardSub}>Daily, monthly, yearly summaries</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.menuHint}>
+        Use the menu (☰) for Customers, Invoices, Reports, and Settings.
+      </Text>
     </ScrollView>
   );
 }
@@ -199,15 +179,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 17 },
-  navGrid: { gap: 12 },
-  navCard: {
-    backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e8e8f0',
+  menuHint: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
-  navCardWide: {},
-  navCardTitle: { fontSize: 17, fontWeight: '700', color: '#1a237e' },
-  navCardSub: { fontSize: 13, color: '#666', marginTop: 4 },
 });
