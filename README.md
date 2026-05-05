@@ -2,7 +2,18 @@
 
 Offline-first taxi invoice generator for Android (Expo / React Native, JavaScript).
 
-## Prerequisites (fix `npm: command not found`)
+## Cursor Agent terminal vs your machine
+
+**Background / Cloud Agent terminal** is a remote sandbox. It often does **not** include Node.js or `npm` in `PATH`, so commands like `npm install` or `npx expo start` can fail there with `command not found`. That is **normal** for that environment—you cannot “fix” the repo so the agent always has `npm`; the agent is not your dev machine.
+
+**What to use instead**
+
+- Run **`npm install`** and **`npx expo start`** in **Cursor’s terminal on your own computer** (the one attached to your Mac), after installing Node from [nodejs.org](https://nodejs.org) or Homebrew.
+- Or use your normal **Terminal.app / iTerm** in the cloned project folder.
+
+The Agent can still edit files and push to Git; running the Expo dev server is intended **locally**.
+
+## Prerequisites (fix `npm: command not found` on your Mac)
 
 `npm` ships with **Node.js**. If your terminal says `command not found`, install Node and open a **new** terminal window.
 
